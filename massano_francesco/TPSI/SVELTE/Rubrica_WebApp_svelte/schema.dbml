@@ -1,0 +1,7 @@
+Table Utente {
+    id integer [primary key]
+    cognome varchar
+    nome varchar
+    indirizzo varchar
+    telefono varchar
+}

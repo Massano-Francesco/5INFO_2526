@@ -1,0 +1,6 @@
+Table Utente {
+    id integer [primary key,increment]
+    testo varchar
+    priorita varchar
+    stato integer
+}

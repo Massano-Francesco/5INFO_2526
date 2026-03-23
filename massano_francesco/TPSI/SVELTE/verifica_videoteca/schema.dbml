@@ -1,0 +1,6 @@
+Table FILM {
+    id integer [primary key]
+    titolo varchar
+    regista varchar
+    anno integer
+}
