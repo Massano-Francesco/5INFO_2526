@@ -25,5 +25,162 @@ export async function GET({ params, request, url}) {
         else
             return json({}, {status: 404});
     };
+
+    try {
+
+        if(params.id){
+            //accedo al DB e prelevo solo il todo con id = params.id
+            //se non presente restituisce errore
+            return exec_query(sql_azione3,params.id)
+        }
+        //accedo al DB e prelevo solo il todo filtrati per priority
+        if (url.searchParams.has('priority')) {
+            return exec_query(sql_azione5, +url.searchParams.get('priority'));
+        }
+        //accedo al DB e prelevo solo il todo filtrati per stato
+        if (url.searchParams.has('done')) {
+            return exec_query(sql_azione4, +JSON.parse(url.searchParams.get('done')));
+        }
+        //accedo al DB e prelevo tutti i todo dal DB
+        return exec_query(sql_azione2);
+        
+    } catch (e) {
+        //in tutti gli altri casi errore interno
+        return exec_query({}, { status: 500});
+    }
+}
+
+
+export async function POST({request}) {
+    try {
+        const body = await request.json();
+        console.log('Ricevuto HTTP POST con body: ', body);
+
+        //insert statement da eseguire
+        const sql_azione1 = db.prepare(
+            "INSERT INTO todo (task, done, priority) VALUES (@task,@done,@priority)"
+        );
+
+        //eseguo la query con i valori del body
+        const res = sql_azione1.run({
+            task: body.task,
+            done : +body.done,
+            priority : +body.priority
+        });
+
+        //se c'è una modifica tutto ok
+        if (res.changes == 1) {
+            //aggiungo all'oggetto inserito l'id generato dal DB
+            body['id'] = res.lastInsertRowid;
+            return json(body, {
+                status: 201,
+                headers : new Headers({'Locatione': `http://localhost:5173/api/todos/${body["id"]}`})
+            });
+        }
+    } catch (e) {
+        console.log(e)
+        //in tutti gli altri casi errore interno
+        return json({}, { status : 500});
+    }
+}
+
+
+export async function PUT({params, request}) {
+    try {
+        const body = await request.json();
+        console.log('Ricevuto HTTP PUT con parametro: ', params);
+        console.log('PUT BODT: ',body)
+
+
+        //update statement da eseguire
+        const sql_azione6 = db.prepare(
+            "UPDATE todo SET task = @task, done = @done, priority = @priority WHERE id = @id"
+        );
+
+        //eseguo la query con i valori del body
+        const res = sql_azione6.run({
+            id: +params.id,
+            task: body.task,
+            done : +body.done,
+            priority : +body.priority
+        });
+
+
+        console.log(res)
+        //se c'è una modifica tutto ok
+        if (res.changes == 0) 
+           return json({}, {status: 404});
+        else if (res.changes == 1)
+            return json(body, { status: 200});
+    } catch (e) {
+        console.log(e)
+        //in tutti gli altri casi errore interno
+        return json({}, { status : 500});
+    }
+}
+
+export async function PATCH({ params, request }) {
+
+    try {
+        const body = await request.json();
+        console.log("Ricevuto HTTP PATCH con parametro:", params);
+        console.log("PUT BODY: ", body)
+
+        const sql_action7 = db.prepare("UPDATE todo SET task = @task WHERE id = @id");
+        const sql_action8 = db.prepare("UPDATE todo SET priority = @priority WHERE id = @id");
+        const sql_action9 = db.prepare("UPDATE todo SET done = @done WHERE id = @id");
+        const sql_get_todo = db.prepare("SELECT * FROM todo WHERE id = ?");
+
+        let key = Object.keys(body)[0];
+        let res;
+
+        switch(key) {
+            case'task':
+                res = sql_action7.run({
+                    id: +params.id,
+                    task: body.task
+                });
+            case 'priority':
+                res = sql_action8.run({
+                    id: +params.id,
+                    priority: +body.priority
+                });
+                break;
+            case 'done':
+                res = sql_action9.run({
+                    id: +params.id,
+                    done: body.done
+                })
+                break;
+            default:
+                return json({}, {status: 500});
+        }
+
+        if(res.changes == 0)
+            return json({}, { status: 404 })
+        else if(res.changes == 1){
+            const todo = sql_get_todo.all(+params.id);
+            return json(todo, {status:200});
+        }
+    } catch (e) {
+        console.log(e);
+        return json({}, { status: 500});
+    }
+}
+
+export async function DELETE({ params, request }) {
+
+    try {
+        console.log("Ricevuto HTTP DELETE con parametri: ", params);
+        const sql_action10 = db.prepare("DELETE FROM todo WHERE id = @id");
+        const res = sql_action10.run({ id: +params.id });
+
+        if(res.changes == 0)
+            return json({}, { status: 404 });
+        else if (res.changes == 1)
+            return new Response(null, {status : 204});
+    } catch (e) {
+        return json({}, { status: 500 });
+    }
 }
 
